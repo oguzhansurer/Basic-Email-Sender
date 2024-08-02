@@ -1,0 +1,94 @@
+*&---------------------------------------------------------------------*
+*& Report  ZOS_SEND_EMAIL
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+REPORT ZOS_SEND_EMAIL.
+
+DATA: lv_string       TYPE string,
+      lv_data_string  TYPE string,
+      lv_xstring      TYPE xstring,
+      lt_bin          TYPE solix_tab,
+      lt_body         TYPE soli_tab,
+      ls_body         TYPE soli.
+
+TYPES: BEGIN OF ty_mara,
+         matnr TYPE mara-matnr,
+         mtart TYPE mara-mtart,
+         matkl TYPE mara-matkl,
+       END OF ty_mara.
+
+DATA: lt_mara TYPE TABLE OF ty_mara,
+      wa_mara TYPE ty_mara.
+
+START-OF-SELECTION.
+  SELECT matnr, mtart, matkl
+    FROM mara
+    INTO TABLE @lt_mara
+    UP TO 10 ROWS.
+
+  BREAK-POINT.
+
+* String'e çevirme işlemleri
+  LOOP AT lt_mara INTO wa_mara.
+    CONCATENATE wa_mara-matnr wa_mara-mtart wa_mara-matkl
+      INTO lv_string SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
+    CONCATENATE lv_string lv_data_string INTO lv_data_string
+      SEPARATED BY cl_abap_char_utilities=>newline.
+  ENDLOOP.
+
+* Xstring'e çevirme işlemleri
+  CALL FUNCTION 'SCMS_STRING_TO_XSTRING'
+    EXPORTING
+      text  = lv_data_string
+    IMPORTING
+      buffer = lv_xstring.
+
+* Binary'e çevirme işlemleri
+  CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+    EXPORTING
+      buffer = lv_xstring
+    TABLES
+      binary_tab = lt_bin.
+
+  ls_body-line = 'Please find the attachment'.
+  APPEND ls_body TO lt_body.
+
+  DATA(lo_doc) = cl_document_bcs=>create_document(
+    i_type    = 'TXT'
+    i_subject = 'Material Details'
+    i_text    = lt_body ).
+
+  lo_doc->add_attachment(
+    EXPORTING
+      i_attachment_type    = 'XLS'
+      i_attachment_subject = 'EXCEL FILE'
+      i_att_content_hex    = lt_bin ).
+
+  DATA(lo_send_request) = cl_bcs=>create_persistent( ).
+
+  lo_send_request->set_document(
+    EXPORTING
+      i_document = lo_doc ).
+
+  DATA(lo_sender) = cl_cam_address_bcs=>create_internet_address(
+    i_address_string = 'ouzzhansurerr@gmail.com' ).
+
+  DATA(lo_recipient) = cl_cam_address_bcs=>create_internet_address(
+    i_address_string = 'ouzzhansurerr@gmail.com' ).
+
+  lo_send_request->set_sender(
+    EXPORTING
+      i_sender = lo_sender ).
+
+  lo_send_request->add_recipient(
+    EXPORTING
+      i_recipient = lo_recipient
+      i_express   = abap_true ).
+
+  DATA(lv_status) = lo_send_request->send( ).
+
+  COMMIT WORK.
+  BREAK-POINT.
