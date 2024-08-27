@@ -5,7 +5,7 @@
 *&
 *&
 *&---------------------------------------------------------------------*
-REPORT ZOS_SEND_EMAIL.
+REPORT ZOS_SEND_EMAIL. 
 
 DATA: lv_string       TYPE string,
       lv_data_string  TYPE string,
